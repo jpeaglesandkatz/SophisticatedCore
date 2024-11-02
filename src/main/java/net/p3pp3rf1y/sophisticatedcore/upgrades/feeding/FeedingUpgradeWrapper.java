@@ -13,9 +13,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.event.EventHooks;
-import net.neoforged.neoforge.items.IItemHandlerModifiable;
 import net.p3pp3rf1y.sophisticatedcore.api.IStorageWrapper;
 import net.p3pp3rf1y.sophisticatedcore.init.ModCoreDataComponents;
+import net.p3pp3rf1y.sophisticatedcore.inventory.ITrackedContentsItemHandler;
 import net.p3pp3rf1y.sophisticatedcore.upgrades.FilterLogic;
 import net.p3pp3rf1y.sophisticatedcore.upgrades.IFilteredUpgrade;
 import net.p3pp3rf1y.sophisticatedcore.upgrades.ITickableUpgrade;
@@ -72,29 +72,38 @@ public class FeedingUpgradeWrapper extends UpgradeWrapperBase<FeedingUpgradeWrap
 	}
 
 	private boolean tryFeedingFoodFromStorage(Level level, int hungerLevel, Player player) {
+		ITrackedContentsItemHandler inventory = storageWrapper.getInventoryForUpgradeProcessing();
+		return InventoryHelper.iterate(inventory, (slot, stack) -> tryFeedingStack(level, hungerLevel, player, slot, stack, inventory), () -> false, ret -> ret);
+	}
+
+	private boolean tryFeedingStack(Level level, int hungerLevel, Player player, Integer slot, ItemStack stack, ITrackedContentsItemHandler inventory) {
 		boolean isHurt = player.getHealth() < player.getMaxHealth() - 0.1F;
-		IItemHandlerModifiable inventory = storageWrapper.getInventoryForUpgradeProcessing();
-		AtomicBoolean fedPlayer = new AtomicBoolean(false);
-		InventoryHelper.iterate(inventory, (slot, stack) -> {
-			if (isEdible(stack, player) && filterLogic.matchesFilter(stack) && (isHungryEnoughForFood(hungerLevel, stack, player) || shouldFeedImmediatelyWhenHurt() && hungerLevel > 0 && isHurt)) {
-				ItemStack mainHandItem = player.getMainHandItem();
-				player.getInventory().items.set(player.getInventory().selected, stack);
-				if (stack.use(level, player, InteractionHand.MAIN_HAND).getResult() == InteractionResult.CONSUME) {
-					player.getInventory().items.set(player.getInventory().selected, mainHandItem);
-					ItemStack containerItem = EventHooks.onItemUseFinish(player, stack.copy(), 0, stack.getItem().finishUsingItem(stack, level, player));
-					inventory.setStackInSlot(slot, stack);
-					if (!ItemStack.matches(containerItem, stack)) {
-						//not handling the case where player doesn't have item handler cap as the player should always have it. if that changes in the future well I guess I fix it
-						CapabilityHelper.runOnCapability(player, Capabilities.ItemHandler.ENTITY, null, playerInventory -> InventoryHelper.insertOrDropItem(player, containerItem, inventory, playerInventory));
-					}
-					fedPlayer.set(true);
-					return true;
-				}
+		if (isEdible(stack, player) && filterLogic.matchesFilter(stack) && (isHungryEnoughForFood(hungerLevel, stack, player) || shouldFeedImmediatelyWhenHurt() && hungerLevel > 0 && isHurt)) {
+			ItemStack mainHandItem = player.getMainHandItem();
+			player.getInventory().items.set(player.getInventory().selected, stack);
+
+			ItemStack singleItemCopy = stack.copy();
+			singleItemCopy.setCount(1);
+
+			if (singleItemCopy.use(level, player, InteractionHand.MAIN_HAND).getResult() == InteractionResult.CONSUME) {
 				player.getInventory().items.set(player.getInventory().selected, mainHandItem);
+
+				stack.shrink(1);
+				inventory.setStackInSlot(slot, stack);
+
+				ItemStack resultItem = EventHooks.onItemUseFinish(player, singleItemCopy, 0, singleItemCopy.getItem().finishUsingItem(singleItemCopy, level, player));
+				if (!resultItem.isEmpty()) {
+					ItemStack insertResult = inventory.insertItem(resultItem, false);
+					if (!insertResult.isEmpty()) {
+						CapabilityHelper.runOnCapability(player, Capabilities.ItemHandler.ENTITY, null, playerInventory ->
+								InventoryHelper.insertOrDropItem(player, insertResult, playerInventory));
+					}
+				}
+				return true;
 			}
-			return false;
-		}, () -> false, ret -> ret);
-		return fedPlayer.get();
+			player.getInventory().items.set(player.getInventory().selected, mainHandItem);
+		}
+		return false;
 	}
 
 	private static boolean isEdible(ItemStack stack, LivingEntity player) {
