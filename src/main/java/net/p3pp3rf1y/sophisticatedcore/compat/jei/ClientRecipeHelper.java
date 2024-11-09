@@ -49,6 +49,10 @@ public class ClientRecipeHelper {
 		return new ShapedRecipe("", recipe.category(), recipe.pattern, RecipeUtil.getResultItem(recipe));
 	}
 
+	public static CraftingRecipe copyShapelessRecipe(ShapelessRecipe recipe) {
+		return new ShapelessRecipe("", recipe.category(), RecipeUtil.getResultItem(recipe), recipe.getIngredients());
+	}
+
 	public static <I extends RecipeInput> ItemStack assemble(Recipe<I> recipe, I container) {
 		Minecraft minecraft = Minecraft.getInstance();
 		ClientLevel level = minecraft.level;
