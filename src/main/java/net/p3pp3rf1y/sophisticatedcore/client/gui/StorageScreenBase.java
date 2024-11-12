@@ -12,6 +12,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.Rect2i;
@@ -45,6 +46,7 @@ import javax.annotation.Nullable;
 import java.text.NumberFormat;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import static net.p3pp3rf1y.sophisticatedcore.client.gui.utils.GuiHelper.GUI_CONTROLS;
 
@@ -81,6 +83,10 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 	};
 
 	protected StorageBackgroundProperties storageBackgroundProperties;
+	@Nullable
+	private Button transferToStorageButton;
+	@Nullable
+	private Button transferToInventoryButton;
 
 	public static void setCraftingUIPart(ICraftingUIPart part) {
 		craftingUIPart = part;
@@ -88,12 +94,6 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 
 	public static void setSlotDecorationRenderer(ISlotDecorationRenderer renderer) {
 		slotDecorationRenderer = renderer;
-	}
-
-	private static final Set<IButtonFactory> buttonFactories = new HashSet<>();
-
-	public static void addButtonFactory(IButtonFactory buttonFactory) {
-		buttonFactories.add(buttonFactory);
 	}
 
 	protected StorageScreenBase(S menu, Inventory playerInventory, Component title) {
@@ -128,6 +128,7 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 		inventoryLabelX = 8 + storageBackgroundProperties.getPlayerInventoryXOffset();
 		updatePlayerSlotsPositions();
 		updateUpgradeSlotsPositions();
+		updateTransferButtonsPositions();
 	}
 
 	protected int getStorageInventoryHeight(int displayableNumberOfRows) {
@@ -213,15 +214,21 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 		if (shouldShowSortButtons()) {
 			addSortButtons();
 		}
-		addAdditionalButtons();
+
+		addTransferButtons();
+	}
+
+	private void addTransferButtons() {
+		transferToStorageButton = new TransferButton(filterByContents -> getMenu().transferItemsToStorage(filterByContents), ButtonDefinitions.TRANSFER_TO_STORAGE, ButtonDefinitions.TRANSFER_TO_STORAGE_FILTERED);
+		addRenderableWidget(transferToStorageButton);
+
+		transferToInventoryButton = new TransferButton(filterByContents -> getMenu().transferItemsToPlayerInventory(filterByContents), ButtonDefinitions.TRANSFER_TO_INVENTORY, ButtonDefinitions.TRANSFER_TO_INVENTORY_FILTERED);
+		addRenderableWidget(transferToInventoryButton);
+		updateTransferButtonsPositions();
 	}
 
 	protected boolean shouldShowSortButtons() {
 		return true;
-	}
-
-	private void addAdditionalButtons() {
-		buttonFactories.forEach(factory -> addRenderableWidget(factory.instantiateButton(this)));
 	}
 
 	private void updateInventoryScrollPanel() {
@@ -237,6 +244,14 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 		} else {
 			inventoryScrollPanel = null;
 		}
+	}
+
+	private void updateTransferButtonsPositions() {
+		if (transferToStorageButton == null || transferToInventoryButton == null) {
+			return;
+		}
+		transferToStorageButton.setPosition(new Position(leftPos + inventoryLabelX + 137, topPos + inventoryLabelY - 2));
+		transferToInventoryButton.setPosition(new Position(leftPos + inventoryLabelX + 149, topPos + inventoryLabelY - 2));
 	}
 
 	private int getNumberOfVisibleRows() {
@@ -297,13 +312,12 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 			}
 		});
 		addWidget(sortButton);
-		sortByButton = new ToggleButton<>(new Position(pos.x() + 14, pos.y()), ButtonDefinitions.SORT_BY, button -> {
+		sortByButton = new ToggleButton<>(new Position(pos.x() + 12, pos.y()), ButtonDefinitions.SORT_BY, button -> {
 			if (button == 0) {
 				getMenu().setSortBy(getMenu().getSortBy().next());
 			}
 		}, () -> getMenu().getSortBy());
 		addWidget(sortByButton);
-
 	}
 
 	private Position getSortButtonsPosition(SortButtonsPosition sortButtonsPosition) {
@@ -312,7 +326,7 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 					new Position(leftPos - UPGRADE_INVENTORY_OFFSET - 2, topPos + getUpgradeHeightWithoutBottom() + UPGRADE_BOTTOM_HEIGHT + 2);
 			case BELOW_UPGRADE_TABS ->
 					new Position(settingsTabControl.getX() + 2, settingsTabControl.getY() + Math.max(0, settingsTabControl.getHeight() + 2));
-			default -> new Position(leftPos + imageWidth - 34, topPos + 4);
+			default -> new Position(leftPos + imageWidth - 31, topPos + 4);
 		};
 	}
 
@@ -344,6 +358,7 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 			updateStorageSlotsPositions();
 			updatePlayerSlotsPositions();
 			updateInventoryScrollPanel();
+			updateTransferButtonsPositions();
 		}
 		PoseStack poseStack = guiGraphics.pose();
 		poseStack.pushPose();
@@ -633,6 +648,12 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 		}
 		if (sortByButton != null) {
 			sortByButton.renderTooltip(this, guiGraphics, x, y);
+		}
+		if (transferToStorageButton != null) {
+			transferToStorageButton.renderTooltip(this, guiGraphics, x, y);
+		}
+		if (transferToInventoryButton != null) {
+			transferToInventoryButton.renderTooltip(this, guiGraphics, x, y);
 		}
 	}
 
@@ -1011,5 +1032,38 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 
 	public Position getRightTopAbovePlayersInventory() {
 		return new Position(storageBackgroundProperties.getPlayerInventoryXOffset() + 8 + 9 * 18, inventoryLabelY);
+	}
+
+	private class TransferButton extends Button {
+		private final ButtonDefinition shiftDefinition;
+		private final ButtonDefinition definition;
+
+		public TransferButton(Consumer<Boolean> transferItems, ButtonDefinition shiftDefinition, ButtonDefinition definition) {
+			super(new Position(StorageScreenBase.this.leftPos, StorageScreenBase.this.topPos), definition, button -> {
+				if (button == 0) {
+					transferItems.accept(!Screen.hasShiftDown());
+				}
+			});
+			this.shiftDefinition = shiftDefinition;
+			this.definition = definition;
+		}
+
+		@Override
+		protected void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTicks) {
+			if (hasShiftDown()) {
+				GuiHelper.blit(guiGraphics, x, y, shiftDefinition.getForegroundTexture());
+			} else {
+				GuiHelper.blit(guiGraphics, x, y, definition.getForegroundTexture());
+			}
+		}
+
+		@Override
+		protected List<Component> getTooltip() {
+			if (hasShiftDown()) {
+				return shiftDefinition.getTooltip();
+			} else {
+				return definition.getTooltip();
+			}
+		}
 	}
 }

@@ -24,10 +24,7 @@ import net.p3pp3rf1y.sophisticatedcore.SophisticatedCore;
 import net.p3pp3rf1y.sophisticatedcore.api.IStorageWrapper;
 import net.p3pp3rf1y.sophisticatedcore.client.gui.utils.TranslationHelper;
 import net.p3pp3rf1y.sophisticatedcore.inventory.InventoryHandler;
-import net.p3pp3rf1y.sophisticatedcore.network.SyncAdditionalSlotInfoPayload;
-import net.p3pp3rf1y.sophisticatedcore.network.SyncContainerClientDataPayload;
-import net.p3pp3rf1y.sophisticatedcore.network.SyncEmptySlotIconsPayload;
-import net.p3pp3rf1y.sophisticatedcore.network.SyncSlotChangeErrorPayload;
+import net.p3pp3rf1y.sophisticatedcore.network.*;
 import net.p3pp3rf1y.sophisticatedcore.settings.ISlotColorCategory;
 import net.p3pp3rf1y.sophisticatedcore.settings.SettingsHandler;
 import net.p3pp3rf1y.sophisticatedcore.settings.SettingsManager;
@@ -1591,6 +1588,14 @@ public abstract class StorageContainerMenuBase<S extends IStorageWrapper> extend
 				PacketDistributor.sendToPlayer(serverPlayer, new SyncSlotChangeErrorPayload(errorUpgradeSlotChangeResult));
 			}
 		}
+	}
+
+	public void transferItemsToPlayerInventory(boolean filterByContents) {
+		PacketDistributor.sendToServer(new TransferItemsPayload(true, filterByContents));
+	}
+
+	public void transferItemsToStorage(boolean filterByContents) {
+		PacketDistributor.sendToServer(new TransferItemsPayload(false, filterByContents));
 	}
 
 	public class StorageUpgradeSlot extends SlotItemHandler {

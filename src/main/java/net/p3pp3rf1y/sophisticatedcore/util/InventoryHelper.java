@@ -286,6 +286,37 @@ public class InventoryHelper {
 		}
 	}
 
+	public static ItemStack mergeIntoPlayerInventory(Player player, ItemStack stack, int startSlot) {
+		ItemStack result = stack.copy();
+		List<Integer> emptySlots = new ArrayList<>();
+		for (int slot = startSlot; slot < player.getInventory().getContainerSize(); slot++) {
+			ItemStack slotStack = player.getInventory().getItem(slot);
+			if (slotStack.isEmpty()) {
+				emptySlots.add(slot);
+			}
+			if (ItemStack.isSameItemSameComponents(slotStack, result)) {
+				int count = Math.min(slotStack.getMaxStackSize() - slotStack.getCount(), result.getCount());
+				slotStack.grow(count);
+				result.shrink(count);
+				if (result.isEmpty()) {
+					return ItemStack.EMPTY;
+				}
+			}
+		}
+
+		for (int slot : emptySlots) {
+			ItemStack slotStack = result.copy();
+			slotStack.setCount(Math.min(slotStack.getMaxStackSize(), result.getCount()));
+			player.getInventory().setItem(slot, slotStack);
+			result.shrink(slotStack.getCount());
+			if (result.isEmpty()) {
+				return ItemStack.EMPTY;
+			}
+		}
+
+		return result;
+	}
+
 	static Map<ItemStackKey, Integer> getCompactedStacks(IItemHandler handler) {
 		return getCompactedStacks(handler, new HashSet<>());
 	}
