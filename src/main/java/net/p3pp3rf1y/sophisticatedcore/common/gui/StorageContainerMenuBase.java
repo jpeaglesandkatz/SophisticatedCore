@@ -1595,6 +1595,14 @@ public abstract class StorageContainerMenuBase<S extends IStorageWrapper> extend
 		}
 	}
 
+	public void transferItemsToPlayerInventory(boolean filterByContents) {
+		PacketHandler.INSTANCE.sendToServer(new TransferItemsMessage(true, filterByContents));
+	}
+
+	public void transferItemsToStorage(boolean filterByContents) {
+		PacketHandler.INSTANCE.sendToServer(new TransferItemsMessage(false, filterByContents));
+	}
+
 	public class StorageUpgradeSlot extends SlotItemHandler {
 		private boolean wasEmpty = true;
 		private final int slotIndex;

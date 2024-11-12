@@ -48,6 +48,7 @@ public class PacketHandler {
 		registerMessage(SyncEmptySlotIconsMessage.class, SyncEmptySlotIconsMessage::encode, SyncEmptySlotIconsMessage::decode, SyncEmptySlotIconsMessage::onMessage);
 		registerMessage(SyncSlotChangeErrorMessage.class, SyncSlotChangeErrorMessage::encode, SyncSlotChangeErrorMessage::decode, SyncSlotChangeErrorMessage::onMessage);
 		registerMessage(SyncDatapackSettingsTemplateMessage.class, SyncDatapackSettingsTemplateMessage::encode, SyncDatapackSettingsTemplateMessage::decode, SyncDatapackSettingsTemplateMessage::onMessage);
+		registerMessage(TransferItemsMessage.class, TransferItemsMessage::encode, TransferItemsMessage::decode, TransferItemsMessage::onMessage);
 	}
 
 	@SuppressWarnings("SameParameterValue")
