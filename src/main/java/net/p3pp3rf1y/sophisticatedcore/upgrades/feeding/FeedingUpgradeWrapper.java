@@ -91,7 +91,7 @@ public class FeedingUpgradeWrapper extends UpgradeWrapperBase<FeedingUpgradeWrap
 				stack.shrink(1);
 				inventory.setStackInSlot(slot, stack);
 
-				ItemStack resultItem = EventHooks.onItemUseFinish(player, singleItemCopy, 0, singleItemCopy.getItem().finishUsingItem(singleItemCopy, level, player));
+				ItemStack resultItem = EventHooks.onItemUseFinish(player, singleItemCopy.copy(), 0, singleItemCopy.getItem().finishUsingItem(singleItemCopy, level, player));
 				if (!resultItem.isEmpty()) {
 					ItemStack insertResult = inventory.insertItem(resultItem, false);
 					if (!insertResult.isEmpty()) {
