@@ -54,6 +54,7 @@ public abstract class StorageContainerMenuBase<S extends IStorageWrapper> extend
 	protected static final String ACTION_TAG = "action";
 	protected static final String OPEN_TAB_ID_TAG = "openTabId";
 	protected static final String SORT_BY_TAG = "sortBy";
+	private static final String SEARCH_PHRASE_TAG = "searchPhrase";
 	private static final Method ON_SWAP_CRAFT = ObfuscationReflectionHelper.findMethod(Slot.class, "m_6405_", int.class);
 	public final NonNullList<ItemStack> lastUpgradeSlots = NonNullList.create();
 	public final List<Slot> upgradeSlots = Lists.newArrayList();
@@ -603,6 +604,8 @@ public abstract class StorageContainerMenuBase<S extends IStorageWrapper> extend
 			setOpenTabId(data.getInt(OPEN_TAB_ID_TAG));
 		} else if (data.contains(SORT_BY_TAG)) {
 			setSortBy(SortBy.fromName(data.getString(SORT_BY_TAG)));
+		} else if (data.contains(SEARCH_PHRASE_TAG)) {
+			setSearchPhrase(data.getString(SEARCH_PHRASE_TAG));
 		} else if (data.contains(ACTION_TAG)) {
 			String actionName = data.getString(ACTION_TAG);
 			switch (actionName) {
@@ -683,6 +686,38 @@ public abstract class StorageContainerMenuBase<S extends IStorageWrapper> extend
 	private boolean shouldShiftClickIntoOpenTabFirst() {
 		MainSettingsCategory category = storageWrapper.getSettingsHandler().getGlobalSettingsCategory();
 		return SettingsManager.getSettingValue(player, category.getPlayerSettingsTagName(), category, SettingsManager.SHIFT_CLICK_INTO_OPEN_TAB_FIRST);
+	}
+
+	public boolean shouldKeepSearchPhrase() {
+		MainSettingsCategory<?> category = storageWrapper.getSettingsHandler().getGlobalSettingsCategory();
+		return SettingsManager.getSettingValue(player, category.getPlayerSettingsTagName(), category, SettingsManager.KEEP_SEARCH_PHRASE);
+	}
+
+	public String getSearchPhrase() {
+		String searchPhrase = "";
+		MainSettingsCategory<?> category = storageWrapper.getSettingsHandler().getGlobalSettingsCategory();
+		if (SettingsManager.getPlayerSetting(player, category.getPlayerSettingsTagName(), SettingsManager.KEEP_SEARCH_PHRASE).orElse(SettingsManager.KEEP_SEARCH_PHRASE.getDefaultValue())) {
+			searchPhrase = SettingsManager.getPlayerSetting(player, category.getPlayerSettingsTagName(), SettingsManager.SEARCH_PHRASE).orElse("");
+		}
+
+		if (searchPhrase.isEmpty() && Boolean.TRUE.equals(SettingsManager.getSettingValue(player, category.getPlayerSettingsTagName(), category, SettingsManager.KEEP_SEARCH_PHRASE))) {
+			searchPhrase = SettingsManager.getSettingValue(player, category.getPlayerSettingsTagName(), category, SettingsManager.SEARCH_PHRASE);
+		}
+
+		return searchPhrase;
+	}
+
+	public void setSearchPhrase(String searchPhrase) {
+		MainSettingsCategory<?> category = storageWrapper.getSettingsHandler().getGlobalSettingsCategory();
+		if (SettingsManager.getPlayerSetting(player, category.getPlayerSettingsTagName(), SettingsManager.KEEP_SEARCH_PHRASE).orElse(SettingsManager.KEEP_SEARCH_PHRASE.getDefaultValue())) {
+			SettingsManager.setPlayerSetting(player, category.getPlayerSettingsTagName(), SettingsManager.SEARCH_PHRASE, searchPhrase);
+			SettingsManager.setSetting(player, category.getPlayerSettingsTagName(), category, SettingsManager.SEARCH_PHRASE, "");
+		} else {
+			SettingsManager.setSetting(player, category.getPlayerSettingsTagName(), category, SettingsManager.SEARCH_PHRASE, searchPhrase);
+		}
+		if (isClientSide()) {
+			sendToServer(data -> data.putString(SEARCH_PHRASE_TAG, searchPhrase));
+		}
 	}
 
 	private boolean mergeStackToUpgradeSlots(Slot sourceSlot, ItemStack slotStack) {
