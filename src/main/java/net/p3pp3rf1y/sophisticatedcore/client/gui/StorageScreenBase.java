@@ -17,6 +17,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
 import net.minecraft.resources.ResourceLocation;
@@ -33,6 +34,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.network.PacketDistributor;
 import net.p3pp3rf1y.sophisticatedcore.Config;
 import net.p3pp3rf1y.sophisticatedcore.client.gui.controls.*;
+import net.p3pp3rf1y.sophisticatedcore.client.gui.utils.Dimension;
 import net.p3pp3rf1y.sophisticatedcore.client.gui.utils.GuiHelper;
 import net.p3pp3rf1y.sophisticatedcore.client.gui.utils.Position;
 import net.p3pp3rf1y.sophisticatedcore.common.gui.*;
@@ -47,6 +49,7 @@ import java.text.NumberFormat;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import static net.p3pp3rf1y.sophisticatedcore.client.gui.utils.GuiHelper.GUI_CONTROLS;
 
@@ -87,6 +90,11 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 	private Button transferToStorageButton;
 	@Nullable
 	private Button transferToInventoryButton;
+	private TextBox searchBox;
+	private Predicate<ItemStack> stackFilter = stack -> searchBox == null || searchBox.getValue().isEmpty()
+			|| (!stack.isEmpty() && stack.getHoverName().getString().toLowerCase().contains(searchBox.getValue().toLowerCase()));
+	private int visibleSlotsCount;
+	private boolean initializing = true;
 
 	public static void setCraftingUIPart(ICraftingUIPart part) {
 		craftingUIPart = part;
@@ -99,6 +107,7 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 	protected StorageScreenBase(S menu, Inventory playerInventory, Component title) {
 		super(menu, playerInventory, title);
 		numberOfUpgradeSlots = getMenu().getNumberOfUpgradeSlots();
+		visibleSlotsCount = getMenu().getNumberOfStorageInventorySlots();
 		updateDimensionsAndSlotPositions(Minecraft.getInstance().getWindow().getGuiScaledHeight());
 	}
 
@@ -152,18 +161,30 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 	protected void updateStorageSlotsPositions() {
 		int yPosition = 18;
 
+		visibleSlotsCount = 0;
 		int slotIndex = 0;
 		while (slotIndex < getMenu().getNumberOfStorageInventorySlots()) {
 			Slot slot = getMenu().getSlot(slotIndex);
-			int lineIndex = slotIndex % getSlotsOnLine();
-			slot.x = 8 + lineIndex * 18;
-			slot.y = yPosition;
-
+			int lineIndex = visibleSlotsCount % getSlotsOnLine();
 			slotIndex++;
-			if (slotIndex % getSlotsOnLine() == 0) {
-				yPosition += 18;
+
+			if (stackFilter.test(slot.getItem())) {
+				slot.x = 8 + lineIndex * 18;
+				slot.y = yPosition;
+				visibleSlotsCount++;
+				if (visibleSlotsCount % getSlotsOnLine() == 0) {
+					yPosition += 18;
+				}
+			} else {
+				slot.y = -100;
 			}
+
 		}
+	}
+
+	@Override
+	public Predicate<ItemStack> getStackFilter() {
+		return stackFilter;
 	}
 
 	protected void updatePlayerSlotsPositions() {
@@ -216,6 +237,57 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 		}
 
 		addTransferButtons();
+		addSearchBox();
+
+		initializing = false;
+	}
+
+	protected void addSearchBox() {
+		SortButtonsPosition sortButtonsPosition = Config.CLIENT.sortButtonsPosition.get();
+		int x = 7;
+		int xEnd = sortButtonsPosition == SortButtonsPosition.TITLE_LINE_RIGHT ? getSortButtonsPosition(sortButtonsPosition).x() - 1 - leftPos : imageWidth - 7;
+		int width = xEnd - x;
+
+		searchBox = new SearchBox(new Position(leftPos + x, topPos + 5), new Dimension(width, 10), this);
+		searchBox.setResponder(this::onSearchPhraseChange);
+		if (getMenu().shouldKeepSearchPhrase()) {
+			searchBox.setValue(getMenu().getSearchPhrase());
+		}
+		addRenderableWidget(searchBox);
+	}
+
+	private void onSearchPhraseChange(String searchPhrase) {
+		if (!initializing) {
+			getMenu().setSearchPhrase(searchPhrase);
+		}
+		updateSearchFilter(searchPhrase);
+		if (inventoryScrollPanel != null) {
+			inventoryScrollPanel.updateSlotsPosition();
+		} else {
+			updateStorageSlotsPositions();
+		}
+	}
+
+	private void updateSearchFilter(String searchPhrase) {
+		if (searchPhrase.trim().isEmpty()) {
+			stackFilter = stack -> true;
+			return;
+		}
+
+		String[] searchTerms = searchPhrase.trim().split(" ");
+
+		List<Predicate<ItemStack>> filters = new ArrayList<>();
+
+		for (String searchTerm : searchTerms) {
+			if (searchTerm.startsWith("@")) {
+				String modName = searchTerm.substring(1).toLowerCase();
+				filters.add(stack -> modName.isEmpty() || BuiltInRegistries.ITEM.getKey(stack.getItem()).getNamespace().contains(modName));
+			} else {
+				filters.add(stack -> stack.getHoverName().getString().toLowerCase().contains(searchTerm.toLowerCase()));
+			}
+		}
+
+		stackFilter = stack -> !stack.isEmpty() && filters.stream().allMatch(f -> f.test(stack));
 	}
 
 	private void addTransferButtons() {
@@ -240,7 +312,7 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 		if (numberOfVisibleRows < getMenu().getNumberOfRows()) {
 			inventoryScrollPanel = new InventoryScrollPanel(Minecraft.getInstance(), this, 0, getMenu().getNumberOfStorageInventorySlots(), getSlotsOnLine(), numberOfVisibleRows * 18, getGuiTop() + 17, getGuiLeft() + 7);
 			addRenderableWidget(inventoryScrollPanel);
-			inventoryScrollPanel.updateSlotsYPosition();
+			inventoryScrollPanel.updateSlotsPosition();
 		} else {
 			inventoryScrollPanel = null;
 		}
@@ -601,7 +673,7 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 		int y = (height - imageHeight) / 2;
 		drawInventoryBg(guiGraphics, x, y, storageBackgroundProperties.getTextureName());
 		if (inventoryScrollPanel == null) {
-			drawSlotBg(guiGraphics, x, y, getMenu().getNumberOfStorageInventorySlots());
+			drawSlotBg(guiGraphics, x, y, visibleSlotsCount);
 			drawSlotOverlays(guiGraphics);
 		}
 		drawUpgradeBackground(guiGraphics);
@@ -654,6 +726,9 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 		}
 		if (transferToInventoryButton != null) {
 			transferToInventoryButton.renderTooltip(this, guiGraphics, x, y);
+		}
+		if (searchBox != null) {
+			searchBox.renderTooltip(this, guiGraphics, x, y);
 		}
 	}
 
@@ -1030,10 +1105,6 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 		return getGuiLeft();
 	}
 
-	public Position getRightTopAbovePlayersInventory() {
-		return new Position(storageBackgroundProperties.getPlayerInventoryXOffset() + 8 + 9 * 18, inventoryLabelY);
-	}
-
 	private class TransferButton extends Button {
 		private final ButtonDefinition shiftDefinition;
 		private final ButtonDefinition definition;
@@ -1066,4 +1137,5 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 			}
 		}
 	}
+
 }
