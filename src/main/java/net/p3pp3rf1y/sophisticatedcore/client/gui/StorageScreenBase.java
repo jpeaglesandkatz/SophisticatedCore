@@ -262,6 +262,7 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 		}
 		updateSearchFilter(searchPhrase);
 		if (inventoryScrollPanel != null) {
+			inventoryScrollPanel.resetScrollDistance();
 			inventoryScrollPanel.updateSlotsPosition();
 		} else {
 			updateStorageSlotsPositions();
