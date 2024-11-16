@@ -117,14 +117,25 @@ public class InventoryScrollPanel extends ScrollPanel {
 		return false;
 	}
 
+	public void resetScrollDistance() {
+		scrollDistance = 0;
+	}
+
 	public void updateSlotsPosition() {
 		visibleSlotsCount = 0;
+		int filteredSlotsCount = 0;
 		for (int i = firstSlotIndex; i < firstSlotIndex + numberOfSlots; i++) {
-			int row = visibleSlotsCount / slotsInARow;
+			int rowOffset = (int) scrollDistance / 18;
+			int row = filteredSlotsCount / slotsInARow - rowOffset;
+			boolean matchesFilter = screen.getStackFilter().test(screen.getSlot(i).getItem());
+			if (matchesFilter) {
+				filteredSlotsCount++;
+			}
+
 			int column = visibleSlotsCount % slotsInARow;
-			int newY = top - screen.getTopY() - (int) scrollDistance / 18 * 18 + row * 18 + TOP_Y_OFFSET;
+			int newY = top - screen.getTopY() + row * 18 + TOP_Y_OFFSET;
 			int newX = left - screen.getLeftX() + column * 18;
-			if (newY < 1 || newY > height || !screen.getStackFilter().test(screen.getSlot(i).getItem())) {
+			if (newY < 1 || newY > height || !matchesFilter) {
 				newY = -100;
 			} else {
 				visibleSlotsCount++;
