@@ -289,7 +289,7 @@ public class InventoryHelper {
 	public static ItemStack mergeIntoPlayerInventory(Player player, ItemStack stack, int startSlot) {
 		ItemStack result = stack.copy();
 		List<Integer> emptySlots = new ArrayList<>();
-		for (int slot = startSlot; slot < player.getInventory().getContainerSize(); slot++) {
+		for (int slot = startSlot; slot < player.getInventory().items.size(); slot++) {
 			ItemStack slotStack = player.getInventory().getItem(slot);
 			if (slotStack.isEmpty()) {
 				emptySlots.add(slot);
