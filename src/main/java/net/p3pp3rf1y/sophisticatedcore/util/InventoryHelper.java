@@ -159,7 +159,7 @@ public class InventoryHelper {
 	}
 
 	public static ItemStack runPickupOnPickupResponseUpgrades(Level world,
-			@Nullable Player player, UpgradeHandler upgradeHandler, ItemStack remainingStack, boolean simulate) {
+															  @Nullable Player player, UpgradeHandler upgradeHandler, ItemStack remainingStack, boolean simulate) {
 		List<IPickupResponseUpgrade> pickupUpgrades = upgradeHandler.getWrappersThatImplement(IPickupResponseUpgrade.class);
 
 		for (IPickupResponseUpgrade pickupUpgrade : pickupUpgrades) {
@@ -287,7 +287,7 @@ public class InventoryHelper {
 	public static ItemStack mergeIntoPlayerInventory(Player player, ItemStack stack, int startSlot) {
 		ItemStack result = stack.copy();
 		List<Integer> emptySlots = new ArrayList<>();
-		for (int slot = startSlot; slot < player.getInventory().getContainerSize(); slot++) {
+		for (int slot = startSlot; slot < player.getInventory().items.size(); slot++) {
 			ItemStack slotStack = player.getInventory().getItem(slot);
 			if (slotStack.isEmpty()) {
 				emptySlots.add(slot);
