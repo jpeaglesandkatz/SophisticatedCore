@@ -7,6 +7,7 @@ import net.p3pp3rf1y.sophisticatedcore.init.ModParticles;
 import net.p3pp3rf1y.sophisticatedcore.init.ModPayloads;
 import net.p3pp3rf1y.sophisticatedcore.init.ModRecipes;
 import net.p3pp3rf1y.sophisticatedcore.inventory.ItemStackKey;
+import net.p3pp3rf1y.sophisticatedcore.upgrades.jukebox.ServerStorageSoundHandler;
 import net.p3pp3rf1y.sophisticatedcore.util.RecipeHelper;
 
 public class CommonEventHandler {
@@ -15,8 +16,12 @@ public class CommonEventHandler {
 		ModParticles.registerParticles(modBus);
 		ModRecipes.registerHandlers(modBus);
 		modBus.addListener(ModPayloads::registerPackets);
-		NeoForge.EVENT_BUS.addListener(ItemStackKey::clearCacheOnTickEnd);
-		NeoForge.EVENT_BUS.addListener(RecipeHelper::onDataPackSync);
-		NeoForge.EVENT_BUS.addListener(RecipeHelper::onRecipesUpdated);
+		IEventBus eventBus = NeoForge.EVENT_BUS;
+
+		eventBus.addListener(ItemStackKey::clearCacheOnTickEnd);
+		eventBus.addListener(RecipeHelper::onDataPackSync);
+		eventBus.addListener(RecipeHelper::onRecipesUpdated);
+		eventBus.addListener(ServerStorageSoundHandler::onWorldUnload);
+		eventBus.addListener(ServerStorageSoundHandler::tick);
 	}
 }
