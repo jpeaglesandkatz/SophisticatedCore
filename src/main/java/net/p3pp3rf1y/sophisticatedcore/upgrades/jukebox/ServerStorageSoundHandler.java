@@ -7,6 +7,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.JukeboxSong;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -120,5 +121,15 @@ public class ServerStorageSoundHandler {
 		if (level instanceof ServerLevel serverLevel) {
 			PacketDistributor.sendToPlayersNear(serverLevel, null, position.x(), position.y(), position.z(), 128, new StopDiscPlaybackPayload(storageUuid));
 		}
+	}
+
+	@SuppressWarnings({"unused", "java:S1172"}) // needs to be here for addListener to recognize which event this method should be subscribed to
+	public static void onWorldUnload(LevelEvent.Unload evt) {
+		if (!(evt.getLevel() instanceof ServerLevel serverLevel)) {
+			return;
+		}
+
+		worldStorageSoundKeepAlive.remove(serverLevel.dimension());
+		lastWorldCheck.remove(serverLevel.dimension());
 	}
 }
