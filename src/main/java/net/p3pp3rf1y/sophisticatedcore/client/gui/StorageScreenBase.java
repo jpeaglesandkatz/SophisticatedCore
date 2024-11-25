@@ -62,7 +62,7 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 	private static final int UPGRADE_SLOT_HEIGHT = 16;
 	private static final int UPGRADE_BOTTOM_HEIGHT = 6;
 	public static final int UPGRADE_INVENTORY_OFFSET = 21;
-	public static final int DISABLED_SLOT_X_POS = -1000;
+	public static final int DISABLED_SLOT_X_POS = -2000;
 	static final int SLOTS_Y_OFFSET = 17;
 	static final int SLOTS_X_OFFSET = 7;
 	public static final int ERROR_SLOT_COLOR = (DyeColor.RED.getTextureDiffuseColor() & 0x00_FFFFFF) | 0xAA000000;
@@ -176,7 +176,7 @@ public abstract class StorageScreenBase<S extends StorageContainerMenuBase<?>> e
 					yPosition += 18;
 				}
 			} else {
-				slot.y = -100;
+				slot.x = DISABLED_SLOT_X_POS;
 			}
 
 		}
