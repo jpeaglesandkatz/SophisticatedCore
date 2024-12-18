@@ -12,7 +12,7 @@ import net.p3pp3rf1y.sophisticatedcore.upgrades.tank.TankClickPayload;
 public class ModPayloads {
 	private ModPayloads() {}
 
-	public static void registerPackets(final RegisterPayloadHandlersEvent event) {
+	public static void registerPayloads(final RegisterPayloadHandlersEvent event) {
 		final PayloadRegistrar registrar = event.registrar(SophisticatedCore.MOD_ID).versioned("1.0");
 		registrar.playToServer(SyncContainerClientDataPayload.TYPE, SyncContainerClientDataPayload.STREAM_CODEC, SyncContainerClientDataPayload::handlePayload);
 		registrar.playToServer(TransferFullSlotPayload.TYPE, TransferFullSlotPayload.STREAM_CODEC, TransferFullSlotPayload::handlePayload);
